@@ -2,12 +2,17 @@ name: 24/7 Telegram News Bot
 
 on:
   schedule:
-    # Runs every 5 minutes 24/7 automatically in GitHub's cloud
-    - cron: '*/5 * * * *'
-  workflow_dispatch: # Allows manual trigger button in GitHub UI
+    # Backup watchdog schedule
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: news-bot-runner
+  cancel-in-progress: false
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   poll-and-post:
@@ -28,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Check Feeds & Dispatch Breaking News
+      - name: Check Feeds & Dispatch Breaking News (1-Min Loop)
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
@@ -42,3 +47,10 @@ jobs:
           git add state.json
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update news seen cache [skip ci]" && git push)
 
+      - name: Trigger Next 24/7 Runner
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "Triggering next 24/7 runner with zero downtime..."
+          gh workflow run poller.yml --repo siddhantchaudhari1407/telegram-news-bot || true
