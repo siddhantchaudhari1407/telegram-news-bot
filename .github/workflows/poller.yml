@@ -33,7 +33,7 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         run: |
-          python main.py run
+          python main.py run --loop-seconds 240 --interval 60
 
       - name: Save & Commit Seen State
         run: |

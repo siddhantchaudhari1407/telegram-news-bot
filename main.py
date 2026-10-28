@@ -219,9 +219,22 @@ def cmd_setup() -> None:
 
 
 def cmd_run() -> None:
-    """Perform a single real-time poll and post any newly published articles."""
+    """Perform polling for newly published articles.
+
+    If --loop-seconds N (or --duration N) is specified, keeps polling
+    every --interval seconds (default 60s) for N seconds total.
+    Allows GitHub Actions cloud runners to achieve 1-minute real-time alerts.
+    """
+    import argparse
+    import time
+    from datetime import datetime
     from bot.config import load_config, get_env
     from bot.runner import poll_and_post_latest
+
+    parser = argparse.ArgumentParser(description="Run news poller")
+    parser.add_argument("--loop-seconds", "--duration", type=int, default=0, help="Run loop for N seconds before exiting")
+    parser.add_argument("--interval", type=int, default=60, help="Seconds between poll cycles (default 60)")
+    args, _ = parser.parse_known_args(sys.argv[2:])
 
     try:
         token      = get_env("BOT_TOKEN")
@@ -239,12 +252,60 @@ def cmd_run() -> None:
     sources    = config["sources"]
     categories = config["categories"]
 
-    print(f"\n🔍 Checking priority sources for fresh news...\n")
-    posted = poll_and_post_latest(token, channel_id, sources, categories)
-    if posted > 0:
-        print(f"✅ Posted {posted} new breaking article(s) to {channel_id}.")
+    if args.loop_seconds > 0:
+        end_time = time.time() + args.loop_seconds
+        cycle = 1
+        total_posted = 0
+        print(f"\n⚡ Running 1-minute instant poll loop for {args.loop_seconds}s (interval={args.interval}s)...")
+        while time.time() < end_time:
+            now_str = datetime.now().strftime("%H:%M:%S")
+            print(f"[{now_str}] Cycle {cycle}: Polling feeds...")
+            posted = poll_and_post_latest(token, channel_id, sources, categories)
+            total_posted += posted
+            remaining = end_time - time.time()
+            if remaining <= 0:
+                break
+            sleep_time = min(args.interval, remaining)
+            print(f"Cycle {cycle} complete (posted {posted}). Sleeping {int(sleep_time)}s until next 1-minute check...\n")
+            time.sleep(sleep_time)
+            cycle += 1
+        print(f"\n✅ Loop finished after {cycle} cycles. Total articles posted: {total_posted}.")
     else:
-        print("ℹ️ Check complete. No new articles to post (or initial state seeded).")
+        print(f"\n🔍 Checking priority sources for fresh news...\n")
+        posted = poll_and_post_latest(token, channel_id, sources, categories)
+        if posted > 0:
+            print(f"✅ Posted {posted} new breaking article(s) to {channel_id}.")
+        else:
+            print("ℹ️ Check complete. No new articles to post (or initial state seeded).")
+
+
+def cmd_test_post() -> None:
+    """Send a live test alert to the Telegram channel to verify posting."""
+    from bot.config import get_env
+    from bot.sender import send_message
+    from bot.utils import get_ist_now
+
+    try:
+        token      = get_env("BOT_TOKEN")
+        channel_id = get_env("CHANNEL_ID")
+    except EnvironmentError as exc:
+        print(f"❌ Configuration error: {exc}")
+        sys.exit(1)
+
+    now_ist = get_ist_now().strftime("%d %b %Y %I:%M %p IST")
+    msg = (
+        "🔴 *LIVE TEST ALERT*\n"
+        "⚡ *[System Status • 1\\-Minute Poller]*\n\n"
+        "*Telegram News Bot Cloud Automation Active*\n\n"
+        "_This confirms your 24/7 cloud runner is active on GitHub Actions, "
+        "polling National & State feeds every 60 seconds with instant duplicate prevention\\._\n\n"
+        "🏷️ *Category:* Civic  \\#Test \\#CloudRunner \\#National\n"
+        f"🕒 {now_ist} \\(Just now\\)\n"
+        "👉 [View Channel](https://t.me/news_8am)"
+    )
+    print(f"Sending test alert to {channel_id}...")
+    msg_id = send_message(token, channel_id, msg)
+    print(f"✅ Test alert successfully posted to {channel_id} (msg_id={msg_id})!")
 
 
 def cmd_watch() -> None:
@@ -324,6 +385,7 @@ if __name__ == "__main__":
         "check-feeds": cmd_check_feeds,
         "watch":       cmd_watch,
         "run":         cmd_run,
+        "test-post":   cmd_test_post,
         "setup":       cmd_setup,
         "health":      cmd_health,
         "help":        cmd_help,
