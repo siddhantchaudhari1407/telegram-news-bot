@@ -125,11 +125,12 @@ def poll_and_post_latest(
     Returns the number of new articles posted.
     """
     from bot.collector import fetch_latest_articles
-    from bot.cleaner import deduplicate, is_important_story
+    from bot.cleaner import deduplicate, is_important_story, are_headlines_duplicate
     from bot.formatter import format_realtime_alert
     from bot.sender import send_message, send_photo, TelegramError
     from bot.state import (
         get_seen_ids, mark_articles_seen,
+        get_seen_headlines, record_posted_headline,
         record_poll_run, record_error,
     )
 
@@ -181,14 +182,36 @@ def poll_and_post_latest(
         record_poll_run(articles_posted=0)
         return 0
 
-    # Deduplicate near-identical breaking headlines
-    deduped = deduplicate(important_articles)
-    logger.info("Found %d unique important articles to post.", len(deduped))
+    # Deduplicate near-identical breaking headlines globally across all feeds
+    deduped = deduplicate(important_articles, by_section=False)
+    logger.info("Found %d unique important articles across feeds in this batch.", len(deduped))
+
+    # Cross-poll duplicate guard: check against previously posted headlines
+    seen_headlines = get_seen_headlines()
+    non_repeat_articles = []
+    for art in deduped:
+        is_repeat = False
+        for prev_h in seen_headlines:
+            if are_headlines_duplicate(art.headline, prev_h):
+                logger.info(
+                    "Skipping duplicate story: '%s' matches previously posted '%s'",
+                    art.headline[:40], prev_h[:40],
+                )
+                mark_articles_seen([art.id, art.url])
+                is_repeat = True
+                break
+        if not is_repeat:
+            non_repeat_articles.append(art)
+
+    if not non_repeat_articles:
+        logger.info("All candidates in this cycle were duplicates of previously posted news.")
+        record_poll_run(articles_posted=0)
+        return 0
 
     # Cap to at most 5 important articles per poll to avoid channel spam and rate limits
     MAX_PER_POLL = 5
-    to_post = deduped[:MAX_PER_POLL]
-    excess = deduped[MAX_PER_POLL:]
+    to_post = non_repeat_articles[:MAX_PER_POLL]
+    excess = non_repeat_articles[MAX_PER_POLL:]
     if excess:
         mark_articles_seen([a.id for a in excess] + [a.url for a in excess])
 
@@ -207,6 +230,7 @@ def poll_and_post_latest(
                 msg_id = send_message(token, channel_id, msg_text)
 
             mark_articles_seen([art.id, art.url])
+            record_posted_headline(art.headline)
             posted_count += 1
             logger.info(
                 "Posted [%s • P%d] '%s' (msg_id=%d)",

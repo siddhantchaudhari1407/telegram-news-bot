@@ -203,3 +203,46 @@ class TestNationalStateFilter:
         for art in nat_articles:
             assert is_important_story(art, cats), f"Expected '{art.headline}' to be accepted as national/state news"
 
+
+
+class TestSentenceCompletion:
+    """Verifies that truncated descriptions are completed into grammatically closed sentences."""
+
+    def test_drops_truncated_trailing_clause(self):
+        from bot.formatter import clean_and_complete_description
+        raw = "The Supreme Court on Wednesday stayed the High Court order on elections. A bench led by CJI issued notice. The matter will be heard next week because..."
+        cleaned = clean_and_complete_description(raw)
+        assert cleaned == "The Supreme Court on Wednesday stayed the High Court order on elections. A bench led by CJI issued notice."
+        assert cleaned.endswith(".")
+        assert "because" not in cleaned
+
+    def test_completes_unpunctuated_single_sentence(self):
+        from bot.formatter import clean_and_complete_description
+        raw = "Central Railway announces mega block on harbour line between CSMT and Vadala Road for maintenance and"
+        cleaned = clean_and_complete_description(raw)
+        assert cleaned == "Central Railway announces mega block on harbour line between CSMT and Vadala Road for maintenance."
+        assert cleaned.endswith(".")
+        assert not cleaned.endswith("and.")
+
+
+class TestCrossSourceDeduplication:
+    """Verifies duplicate news stories across different publishers and runs are caught."""
+
+    def test_cross_source_headline_matching(self):
+        from bot.cleaner import are_headlines_duplicate
+        h1 = "3 killed, 20 injured after express train derails near Jalgaon in Maharashtra"
+        h2 = "Maharashtra: 3 dead as train derails near Jalgaon; rescue operations underway"
+        assert are_headlines_duplicate(h1, h2) is True
+
+    def test_persistent_seen_headlines(self, tmp_path, monkeypatch):
+        import bot.state as state_mod
+        from bot.cleaner import are_headlines_duplicate
+        monkeypatch.setattr(state_mod, "STATE_PATH", tmp_path / "state.json")
+
+        state_mod.record_posted_headline("3 killed, 20 injured after express train derails near Jalgaon in Maharashtra")
+        seen = state_mod.get_seen_headlines()
+        assert len(seen) == 1
+
+        new_incoming = "Maharashtra: 3 dead as train derails near Jalgaon; rescue operations underway"
+        is_dup = any(are_headlines_duplicate(new_incoming, prev) for prev in seen)
+        assert is_dup is True

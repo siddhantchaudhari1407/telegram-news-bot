@@ -161,6 +161,26 @@ def mark_articles_seen(article_ids: list[str], max_history: int = 5000) -> None:
     _save(state)
 
 
+def get_seen_headlines() -> list[str]:
+    """Return list of recent headlines that have been posted."""
+    state = _load()
+    return state.get("seen_headlines", [])
+
+
+def record_posted_headline(headline: str, max_history: int = 1000) -> None:
+    """Store posted headline for cross-poll deduplication."""
+    if not headline:
+        return
+    state = _load()
+    headlines: list[str] = state.get("seen_headlines", [])
+    if headline not in headlines:
+        headlines.append(headline)
+    if len(headlines) > max_history:
+        headlines = headlines[-max_history:]
+    state["seen_headlines"] = headlines
+    _save(state)
+
+
 def record_poll_run(articles_posted: int = 0) -> None:
     """Record timestamp and stats for the latest poll run."""
     state = _load()

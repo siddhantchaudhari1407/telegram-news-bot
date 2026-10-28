@@ -121,6 +121,75 @@ def format_digest(
     return _chunk_blocks(all_blocks)
 
 
+def clean_and_complete_description(desc: str, headline: str = "", max_chars: int = 450) -> str:
+    """Ensure the description consists of complete, grammatically closed sentences.
+
+    1. Strip leading/trailing whitespace, stray ellipsis, and HTML leftovers.
+    2. Split into sentences (by . ! ? followed by space or end of string).
+    3. Accumulate full sentences that fit within max_chars.
+    4. Never leave hanging fragments like 'in the case of...', 'said that...', or cut off mid-word.
+    5. If a single sentence was cut off without terminal punctuation, clean dangling words and close with period.
+    """
+    if not desc:
+        return ""
+
+    text = desc.strip()
+    text = re.sub(r"\s*(&nbsp;|\.\.\.|…|--)\s*$", "", text)
+    text = re.sub(r"\s*<[^>]+>", "", text)
+    text = " ".join(text.split())
+
+    if not text:
+        return ""
+
+    # Don't show description if it just repeats headline
+    if headline and text.lower().strip(". ") == headline.lower().strip(". "):
+        return ""
+
+    # Sentence boundary regex (. ! ? followed by space or string end)
+    sentence_pattern = re.compile(r"([^.!?]+[.!?]+(?:\s+|$))")
+    matches = [m.strip() for m in sentence_pattern.findall(text)]
+
+    complete_sents = []
+    current_len = 0
+
+    for sent in matches:
+        if sent and sent[-1] in ".!?":
+            if sent.endswith("...") or sent.endswith("…"):
+                continue
+            if current_len + len(sent) + 1 <= max_chars:
+                complete_sents.append(sent)
+                current_len += len(sent) + 1
+            else:
+                break
+
+    if complete_sents:
+        return " ".join(complete_sents)
+
+    # Fallback if no full sentence was punctuated:
+    # Trim dangling prepositions/conjunctions and add clean full stop
+    dangling = {
+        "and", "or", "the", "to", "in", "of", "for", "on", "with", "at",
+        "by", "from", "a", "an", "that", "as", "which", "because", "where",
+        "after", "before", "is", "are", "was", "were", "said", "says", "while"
+    }
+    words = text.split()
+    chosen_words = []
+    c_len = 0
+    for w in words:
+        if c_len + len(w) + 1 > max_chars:
+            break
+        chosen_words.append(w)
+        c_len += len(w) + 1
+
+    while chosen_words and chosen_words[-1].lower().rstrip(".,;:") in dangling:
+        chosen_words.pop()
+
+    if not chosen_words:
+        return ""
+
+    return " ".join(chosen_words).rstrip(".,;: ") + "."
+
+
 def _format_story(art: "Article") -> str:
     """Render a single Article as a MarkdownV2 story block."""
     # Headline (bold) — strip trailing " - Publisher" suffix common in Google News
@@ -132,14 +201,12 @@ def _format_story(art: "Article") -> str:
     dev_label = " \\[Developing\\]" if art.is_developing else ""
     cat_line = f"\\[{escape_md2(cat_label)}\\]{dev_label}"
 
-    # Description: feed's own text, trimmed to DESCRIPTION_MAX chars, no rewriting
+    # Description: complete sentence summary
     desc_line = ""
     if art.description:
-        desc = art.description.strip()
-        if len(desc) > DESCRIPTION_MAX:
-            # Trim at last word boundary before the limit
-            desc = desc[:DESCRIPTION_MAX].rsplit(" ", 1)[0] + "…"
-        desc_line = f"_{escape_md2(desc)}_\n"
+        desc = clean_and_complete_description(art.description, art.headline, max_chars=DESCRIPTION_MAX)
+        if desc:
+            desc_line = f"_{escape_md2(desc)}_\n"
 
     # Publisher line
     pub = art.publisher
@@ -234,10 +301,9 @@ def format_realtime_alert(art: "Article") -> str:
 
     desc_md = ""
     if art.description:
-        desc = art.description.strip()
-        if len(desc) > DESCRIPTION_MAX:
-            desc = desc[:DESCRIPTION_MAX].rsplit(" ", 1)[0] + "…"
-        desc_md = f"_{escape_md2(desc)}_\n\n"
+        desc = clean_and_complete_description(art.description, art.headline, max_chars=450)
+        if desc:
+            desc_md = f"_{escape_md2(desc)}_\n\n"
 
     cat = display_category(art.category)
     cat_line = f"🏷️ *Category:* {escape_md2(cat)}"
@@ -300,9 +366,7 @@ def format_digest_plain(
             headline = _strip_source_suffix(art.headline)
             cat_label = display_category(art.category)
             dev = " [DEVELOPING]" if art.is_developing else ""
-            desc = art.description.strip()
-            if len(desc) > DESCRIPTION_MAX:
-                desc = desc[:DESCRIPTION_MAX].rsplit(" ", 1)[0] + "…"
+            desc = clean_and_complete_description(art.description, art.headline, max_chars=DESCRIPTION_MAX)
 
             pub = art.publisher
             if art.other_publishers:

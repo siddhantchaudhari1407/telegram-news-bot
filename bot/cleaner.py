@@ -1,10 +1,11 @@
 """Phase 2 – Deduplication and classification refinements.
 
-Headline deduplication uses a simple but effective token-overlap similarity
-(Jaccard on word sets).  No external libraries needed.
+Headline deduplication uses token-overlap similarity, abbreviation expansion,
+and morphological stemming (Jaccard + Overlap Coefficient).
+Supports global cross-source deduplication to ensure different newsrooms
+reporting on the same breaking story do not cause duplicate Telegram alerts.
 
-All classification is keyword-based from categories.yaml.  Results are
-best-effort; the bot never claims to verify facts.
+All classification is keyword-based from categories.yaml.
 """
 from __future__ import annotations
 
@@ -21,42 +22,38 @@ logger = logging.getLogger(__name__)
 # Public API
 # ---------------------------------------------------------------------------
 
-SIMILARITY_THRESHOLD = 0.55   # Jaccard similarity above which headlines merge
+SIMILARITY_THRESHOLD = 0.40   # Jaccard similarity threshold for clustering
 
 
-def deduplicate(articles: list["Article"]) -> list["Article"]:
-    """Remove near-identical headlines within each section.
+def deduplicate(articles: list["Article"], by_section: bool = False) -> list["Article"]:
+    """Remove near-identical headlines across sources and sections.
 
-    Algorithm (per section):
-      1. Normalise each headline to a set of meaningful tokens.
-      2. Compare every pair; if Jaccard similarity >= THRESHOLD, treat as same story.
-      3. Keep the article carried by the most publishers (most entry_count weight),
-         merging the rest into other_publishers.
-      4. Within a tie, prefer the earliest-published version.
-
-    Cross-section dedup is intentionally NOT done: the same story may be
-    legitimately under both India and Mumbai sections.
+    Args:
+        articles:   List of candidate Article objects.
+        by_section: If True, dedup only within section. If False (default),
+                    dedup globally across all feeds so different newsrooms
+                    (e.g. Reuters vs The Hindu vs Indian Express) do not post
+                    duplicates of the same breaking news event.
     """
-    from collections import defaultdict
+    if not articles:
+        return []
 
-    # Group by section
-    by_section: dict[str, list["Article"]] = defaultdict(list)
-    for art in articles:
-        by_section[art.section].append(art)
+    if by_section:
+        from collections import defaultdict
+        by_sec: dict[str, list["Article"]] = defaultdict(list)
+        for art in articles:
+            by_sec[art.section].append(art)
 
-    result: list["Article"] = []
-    for section, arts in by_section.items():
-        result.extend(_dedup_section(arts))
-
-    return result
+        result: list["Article"] = []
+        for section, arts in by_sec.items():
+            result.extend(_dedup_cluster(arts))
+        return result
+    else:
+        return _dedup_cluster(articles)
 
 
 def reclassify(articles: list["Article"], categories_config: dict) -> list["Article"]:
-    """Re-run classification on every article (idempotent).
-
-    Useful after dedup merges descriptions from multiple publishers.
-    Also normalises category key → human-readable display name.
-    """
+    """Re-run classification on every article (idempotent)."""
     for art in articles:
         combined = f"{art.headline} {art.description}"
         art.category = _classify(combined, categories_config)
@@ -65,51 +62,98 @@ def reclassify(articles: list["Article"], categories_config: dict) -> list["Arti
 
 
 def sort_articles(articles: list["Article"]) -> list["Article"]:
-    """Sort articles within each section by publisher count desc, then time desc.
-
-    More publishers = more important story → shown first.
-    """
+    """Sort articles by publisher count desc, then priority asc, then time desc."""
     return sorted(
         articles,
-        key=lambda a: (a.section, -(len(a.other_publishers) + 1), a.published_time),
+        key=lambda a: (
+            a.section,
+            -(len(a.other_publishers) + 1),
+            getattr(a, "priority", 5),
+            -a.published_time.timestamp(),
+        ),
         reverse=False,
     )
 
 
 # ---------------------------------------------------------------------------
-# Internal helpers
+# Internal helpers & tokenisation
 # ---------------------------------------------------------------------------
 
 _STOPWORDS = frozenset(
     "a an the and or but in on at to of for is are was were be been "
     "being have has had do does did will would could should may might "
-    "shall can s its it this that with from by as into".split()
+    "shall can s its it this that with from by as into after before "
+    "over under through between against during without says said amid over".split()
 )
 
+_ABBREV = {
+    "sc": "supreme court",
+    "hc": "high court",
+    "cji": "chief justice",
+    "pm": "prime minister",
+    "cm": "chief minister",
+    "bjp": "bharatiya janata party",
+    "cr": "central railway",
+    "wr": "western railway",
+    "pts": "point",
+    "points": "point",
+    "dead": "kill",
+    "dies": "kill",
+    "died": "kill",
+    "fatal": "kill",
+    "plunges": "fall",
+    "crashes": "fall",
+    "tumbles": "fall",
+    "ruling": "order",
+    "verdict": "order",
+}
 
-def _tokenise(headline: str) -> frozenset[str]:
-    """Lower-case, strip punctuation, remove stop-words, return frozen word set."""
-    tokens = re.sub(r"[^a-z0-9\s]", " ", headline.lower()).split()
-    return frozenset(t for t in tokens if t not in _STOPWORDS and len(t) > 1)
+
+def _stem(word: str) -> str:
+    """Lightweight suffix stemmer for news headlines."""
+    w = word.lower()
+    for suffix in ("ing", "ment", "tion", "sion", "ness", "able", "ible", "ies", "es", "ed", "s"):
+        if w.endswith(suffix) and len(w) - len(suffix) >= 3:
+            return w[:-len(suffix)]
+    return w
 
 
-def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
-    if not a or not b:
-        return 0.0
-    intersection = len(a & b)
-    union = len(a | b)
-    return intersection / union if union else 0.0
+def _tokenise(text: str) -> frozenset[str]:
+    """Lower-case, expand abbreviations, stem, and return meaningful token set."""
+    clean = re.sub(r"[^a-z0-9\s]", " ", text.lower())
+    words = clean.split()
+    expanded = []
+    for w in words:
+        if w in _ABBREV:
+            expanded.extend(_ABBREV[w].split())
+        else:
+            expanded.append(w)
+    return frozenset(_stem(w) for w in expanded if w not in _STOPWORDS and len(w) > 1)
 
 
-def _dedup_section(arts: list["Article"]) -> list["Article"]:
-    """Cluster near-identical headlines; keep one representative per cluster."""
+def are_headlines_duplicate(h1: str, h2: str) -> bool:
+    """Return True if two headlines refer to the same news event."""
+    t1 = _tokenise(h1)
+    t2 = _tokenise(h2)
+    if not t1 or not t2:
+        return False
+
+    inter = len(t1 & t2)
+    union = len(t1 | t2)
+    jaccard = inter / union if union else 0.0
+    min_len = min(len(t1), len(t2))
+    overlap = inter / min_len if min_len else 0.0
+
+    # Match if Jaccard similarity is high OR strong subset overlap on at least 3 key words
+    return jaccard >= SIMILARITY_THRESHOLD or (inter >= 3 and overlap >= 0.48)
+
+
+def _dedup_cluster(arts: list["Article"]) -> list["Article"]:
+    """Cluster near-identical headlines across candidates; keep one representative per cluster."""
     if not arts:
         return []
 
-    token_sets = [_tokenise(a.headline) for a in arts]
     n = len(arts)
-
-    # Union-Find for clustering
     parent = list(range(n))
 
     def find(x: int) -> int:
@@ -125,10 +169,10 @@ def _dedup_section(arts: list["Article"]) -> list["Article"]:
 
     for i in range(n):
         for j in range(i + 1, n):
-            if _jaccard(token_sets[i], token_sets[j]) >= SIMILARITY_THRESHOLD:
+            if are_headlines_duplicate(arts[i].headline, arts[j].headline):
                 union(i, j)
 
-    # Build clusters: root → list of indices
+    # Build clusters
     clusters: dict[int, list[int]] = {}
     for i in range(n):
         root = find(i)
@@ -140,14 +184,18 @@ def _dedup_section(arts: list["Article"]) -> list["Article"]:
             deduped.append(arts[indices[0]])
             continue
 
-        # Pick representative: most other_publishers first, then earliest time
         cluster_arts = [arts[i] for i in indices]
-        representative = max(
+        # Prefer higher priority (lower number, e.g. P1 Reuters > P3 IE), then most publishers, then earliest time
+        representative = min(
             cluster_arts,
-            key=lambda a: (len(a.other_publishers), -a.published_time.timestamp()),
+            key=lambda a: (
+                getattr(a, "priority", 5),
+                -len(a.other_publishers),
+                a.published_time.timestamp(),
+            ),
         )
 
-        # Merge all publishers into representative
+        # Merge all publishers
         all_publishers: set[str] = set(representative.other_publishers)
         all_publishers.add(representative.publisher)
         for art in cluster_arts:
@@ -155,20 +203,21 @@ def _dedup_section(arts: list["Article"]) -> list["Article"]:
                 continue
             all_publishers.add(art.publisher)
             all_publishers.update(art.other_publishers)
-            # Merge descriptions (take longest non-empty one)
             if len(art.description) > len(representative.description):
                 representative.description = art.description
+            if not representative.image_url and art.image_url:
+                representative.image_url = art.image_url
 
         all_publishers.discard(representative.publisher)
         representative.other_publishers = sorted(all_publishers)
 
         merged_count = len(indices)
         if merged_count > 1:
-            logger.debug(
-                "Dedup [%s]: merged %d articles → '%s' (also: %s)",
-                representative.section,
+            logger.info(
+                "Dedup merged %d articles → '%s' (sources: %s, %s)",
                 merged_count,
                 representative.headline[:60],
+                representative.publisher,
                 ", ".join(representative.other_publishers) or "none",
             )
 
@@ -228,10 +277,10 @@ def _is_developing(text: str, categories_config: dict) -> bool:
 
 
 def is_important_story(art: "Article", categories_config: dict) -> bool:
-    """Filter out noise, routine match scores, and low-impact fluff.
+    """Filter out noise, routine match scores, international news, and low-impact fluff.
 
-    Criteria for important news:
-    1. Reject if headline matches noise_keywords (e.g. NFL, fantasy, box office, celebrity).
+    Criteria for important news (National & State news only):
+    1. Reject if headline matches noise_keywords (sports fluff, entertainment, foreign/international affairs).
     2. Accept if matches high_importance_keywords (e.g. PM, cabinet, elections, SC, RBI, disaster).
     3. Accept official civic & infrastructure notices (NMMC, CIDCO, Navi Mumbai infrastructure).
     4. Accept core hard-news categories (politics, economy, infrastructure, civic, safety, accidents, trains, water).
@@ -243,7 +292,7 @@ def is_important_story(art: "Article", categories_config: dict) -> bool:
 
     text_lower = f"{art.headline} {art.description}".lower()
 
-    # 1. Noise check (sports fluff, entertainment gossip)
+    # 1. Noise check (sports fluff, entertainment gossip, foreign affairs)
     for kw in noise_kws:
         if kw.lower() in text_lower:
             return False
@@ -269,4 +318,3 @@ def is_important_story(art: "Article", categories_config: dict) -> bool:
 
     # 5. Filter out routine sports, filler business, and general other
     return False
-
