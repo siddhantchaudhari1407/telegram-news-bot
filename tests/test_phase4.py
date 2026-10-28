@@ -166,3 +166,40 @@ class TestRunnerDuplicateGuard:
         result = run_digest("TOKEN", "@chan", {"sections": {}, "settings": {}}, {"categories": {}, "settings": {}})
         assert result is True
         assert send_calls == [], "send_message should not have been called"
+
+
+class TestNationalStateFilter:
+    """Verifies that international news is rejected and national/state news is accepted."""
+
+    def test_rejects_international_stories(self):
+        from bot.cleaner import is_important_story
+        from bot.collector import Article
+        from bot.config import load_config
+
+        cats = load_config()["categories"]
+
+        intl_articles = [
+            Article(id="1", headline="Donald Trump speaks at rally in Pennsylvania", description="US election updates", url="http://x", publisher="Reuters", section="world", priority=1),
+            Article(id="2", headline="Gaza ceasefire talks hit deadlock in Cairo", description="Middle East conflict", url="http://x", publisher="Reuters", section="world", priority=1),
+            Article(id="3", headline="White House releases statement on European Union trade", description="US trade", url="http://x", publisher="Reuters", section="world", priority=1),
+        ]
+
+        for art in intl_articles:
+            assert not is_important_story(art, cats), f"Expected '{art.headline}' to be rejected as international news"
+
+    def test_accepts_national_and_state_stories(self):
+        from bot.cleaner import is_important_story
+        from bot.collector import Article
+        from bot.config import load_config
+
+        cats = load_config()["categories"]
+
+        nat_articles = [
+            Article(id="4", headline="Supreme Court issues notice on national reservation policy", description="Cabinet decisions", url="http://x", publisher="The Hindu", section="national", priority=2),
+            Article(id="5", headline="NMMC announces 24-hour water cut across Navi Mumbai due to Morbe dam repairs", description="Civic water supply", url="http://x", publisher="NMMC", section="civic", priority=7),
+            Article(id="6", headline="Central Railway announces special suburban local trains for Mumbai commuters", description="Local train infrastructure", url="http://x", publisher="Hindustan Times", section="mumbai", priority=4),
+        ]
+
+        for art in nat_articles:
+            assert is_important_story(art, cats), f"Expected '{art.headline}' to be accepted as national/state news"
+

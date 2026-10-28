@@ -253,8 +253,10 @@ def is_important_story(art: "Article", categories_config: dict) -> bool:
         if kw.lower() in text_lower:
             return True
 
-    # 3. Always accept official civic & infrastructure notices from P7 / P8
-    if getattr(art, "priority", 5) in (7, 8):
+    # 3. Always accept official civic & infrastructure notices from local/civic feeds
+    if getattr(art, "source_id", "") in ("nmmc_cidco", "ilove_navimumbai", "loksatta"):
+        return True
+    if getattr(art, "priority", 5) in (6, 7, 8):
         return True
 
     # 4. Core hard-news categories

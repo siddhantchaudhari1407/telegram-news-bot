@@ -10,15 +10,14 @@ Collects news from 9 priority publisher RSS feeds, cleans and attributes summari
 
 | Priority | Source | Focus / Coverage | Tags |
 |:---:|---|---|---|
-| **P1** | **Reuters** | National & International Breaking News | `#Breaking` `#World` `#National` |
+| **P1** | **Reuters India** | National Breaking News & Economy | `#Breaking` `#National` `#India` |
 | **P2** | **The Hindu** | Politics, Government, Education & Public Affairs | `#Politics` `#Government` `#National` |
 | **P3** | **The Indian Express** | National News, Investigations & City News | `#National` `#Investigation` `#India` |
-| **P4** | **AP News** | International Developments | `#International` `#World` |
-| **P5** | **Hindustan Times** | Mumbai & Regional News | `#Mumbai` `#Maharashtra` `#Regional` |
-| **P6** | **Loksatta** | Marathi & Maharashtra News | `#Maharashtra` `#Marathi` `#Regional` |
-| **P7** | **I Love Navi Mumbai** | Dedicated Local Reporting | `#NaviMumbai` `#LocalNews` |
-| **P8** | **NMMC and CIDCO** | Official Civic & Infrastructure Notices | `#NaviMumbai` `#NMMC` `#CIDCO` `#Civic` |
-| **P9** | **Akashvani News** | Public-Service & Regional Updates | `#Akashvani` `#National` `#PublicService` |
+| **P4** | **Hindustan Times** | Mumbai & Regional News | `#Mumbai` `#Maharashtra` `#Regional` |
+| **P5** | **Loksatta** | Marathi & Maharashtra News | `#Maharashtra` `#Marathi` `#Regional` |
+| **P6** | **I Love Navi Mumbai** | Dedicated Local Reporting | `#NaviMumbai` `#LocalNews` |
+| **P7** | **NMMC and CIDCO** | Official Civic & Infrastructure Notices | `#NaviMumbai` `#NMMC` `#CIDCO` `#Civic` |
+| **P8** | **Akashvani News** | Public-Service & Regional Updates | `#Akashvani` `#National` `#PublicService` |
 
 ---
 
