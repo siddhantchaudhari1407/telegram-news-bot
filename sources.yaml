@@ -1,0 +1,71 @@
+sources:
+  - id: reuters
+    name: "Reuters"
+    priority: 1
+    category_focus: "National & International Breaking News"
+    url: "https://news.google.com/rss/search?q=site:reuters.com+when:2h&hl=en-IN&gl=IN&ceid=IN:en"
+    tag: "#Breaking #World #National"
+
+  - id: the_hindu
+    name: "The Hindu"
+    priority: 2
+    category_focus: "Politics, Government, Education & Public Affairs"
+    url: "https://www.thehindu.com/news/national/feeder/default.rss"
+    tag: "#Politics #Government #National"
+
+  - id: indian_express
+    name: "The Indian Express"
+    priority: 3
+    category_focus: "National News, Investigations & City News"
+    url: "https://indianexpress.com/section/india/feed/"
+    tag: "#National #Investigation #India"
+
+  - id: ap_news
+    name: "AP News"
+    priority: 4
+    category_focus: "International Developments"
+    url: "https://news.google.com/rss/search?q=site:apnews.com+(world+OR+international+OR+diplomacy+OR+war+OR+economy+OR+India)+when:2h&hl=en-US&gl=US&ceid=US:en"
+    tag: "#International #World"
+
+  - id: hindustan_times
+    name: "Hindustan Times"
+    priority: 5
+    category_focus: "Mumbai & Regional News"
+    url: "https://news.google.com/rss/search?q=site:hindustantimes.com+Mumbai+when:2h&hl=en-IN&gl=IN&ceid=IN:en"
+    tag: "#Mumbai #Maharashtra #Regional"
+
+  - id: loksatta
+    name: "Loksatta"
+    priority: 6
+    category_focus: "Marathi & Maharashtra News"
+    url: "https://news.google.com/rss/search?q=site:loksatta.com+when:2h&hl=mr&gl=IN&ceid=IN:mr"
+    tag: "#Maharashtra #Marathi #Regional"
+
+  - id: ilove_navimumbai
+    name: "I Love Navi Mumbai"
+    priority: 7
+    category_focus: "Dedicated Local Reporting"
+    url: "https://news.google.com/rss/search?q=%22Navi+Mumbai%22+when:4h&hl=en-IN&gl=IN&ceid=IN:en"
+    tag: "#NaviMumbai #LocalNews"
+
+  - id: nmmc_cidco
+    name: "NMMC and CIDCO"
+    priority: 8
+    category_focus: "Official Civic & Infrastructure Notices"
+    url: "https://news.google.com/rss/search?q=CIDCO+OR+NMMC+Navi+Mumbai+when:4h&hl=en-IN&gl=IN&ceid=IN:en"
+    tag: "#NaviMumbai #NMMC #CIDCO #Civic"
+
+  - id: akashvani
+    name: "Akashvani News"
+    priority: 9
+    category_focus: "Public-Service & Regional Updates"
+    url: "https://news.google.com/rss/search?q=site:newsonair.gov.in+when:2h&hl=en-IN&gl=IN&ceid=IN:en"
+    tag: "#Akashvani #National #PublicService"
+
+settings:
+  poll_interval_seconds: 60
+  max_article_age_minutes: 30
+  request_timeout: 10
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TelegramNewsBot/2.0"
+  max_seen_history: 5000
+

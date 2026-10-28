@@ -1,0 +1,330 @@
+categories:
+  politics:
+    keywords:
+      - parliament
+      - election
+      - BJP
+      - Congress
+      - government
+      - minister
+      - PM
+      - chief minister
+      - MLA
+      - MP
+      - vote
+      - policy
+      - bill
+      - Lok Sabha
+      - Rajya Sabha
+      - governor
+      - party
+      - coalition
+
+  economy:
+    keywords:
+      - GDP
+      - inflation
+      - RBI
+      - rupee
+      - budget
+      - fiscal
+      - tax
+      - GST
+      - deficit
+      - growth
+      - recession
+      - economy
+      - economic
+
+  business:
+    keywords:
+      - company
+      - stock
+      - market
+      - NSE
+      - BSE
+      - Sensex
+      - Nifty
+      - IPO
+      - merger
+      - acquisition
+      - startup
+      - profit
+      - loss
+      - revenue
+      - quarterly
+
+  tech_ai:
+    keywords:
+      - technology
+      - AI
+      - artificial intelligence
+      - machine learning
+      - startup
+      - app
+      - software
+      - data
+      - cyber
+      - hack
+      - digital
+      - tech
+      - smartphone
+      - internet
+
+  education:
+    keywords:
+      - school
+      - college
+      - university
+      - exam
+      - result
+      - CBSE
+      - ICSE
+      - JEE
+      - NEET
+      - student
+      - teacher
+      - education
+      - admission
+
+  jobs:
+    keywords:
+      - employment
+      - job
+      - hiring
+      - layoff
+      - recruit
+      - career
+      - workforce
+      - salary
+      - unemployment
+
+  crime:
+    keywords:
+      - arrested
+      - murder
+      - theft
+      - robbery
+      - fraud
+      - scam
+      - police
+      - FIR
+      - crime
+      - accused
+      - sentenced
+      - court
+      - bail
+
+  accidents:
+    keywords:
+      - accident
+      - crash
+      - collision
+      - injured
+      - killed
+      - fire
+      - blast
+      - explosion
+      - mishap
+
+  weather:
+    keywords:
+      - rain
+      - flood
+      - cyclone
+      - drought
+      - weather
+      - monsoon
+      - temperature
+      - heatwave
+      - storm
+      - lightning
+      - IMD
+
+  safety:
+    keywords:
+      - safety
+      - alert
+      - warning
+      - hazard
+      - risk
+      - precaution
+      - disaster
+      - relief
+
+  sports:
+    keywords:
+      - cricket
+      - football
+      - tennis
+      - Olympics
+      - IPL
+      - match
+      - tournament
+      - player
+      - team
+      - score
+      - championship
+      - medal
+
+  civic:
+    keywords:
+      - BMC
+      - NMMC
+      - municipality
+      - civic
+      - water supply
+      - garbage
+      - sanitation
+      - road
+      - footpath
+      - housing
+
+  trains:
+    keywords:
+      - railway
+      - train
+      - local train
+      - Central Railway
+      - Western Railway
+      - station
+      - platform
+      - delay
+      - cancelled
+
+  traffic:
+    keywords:
+      - traffic
+      - highway
+      - road
+      - congestion
+      - toll
+      - flyover
+      - signal
+      - metro
+      - bus
+      - transport
+
+  infrastructure:
+    keywords:
+      - construction
+      - bridge
+      - tunnel
+      - project
+      - development
+      - smart city
+      - urban
+      - building
+      - infrastructure
+
+  water:
+    keywords:
+      - water
+      - reservoir
+      - dam
+      - supply
+      - shortage
+      - pipeline
+      - lake
+      - tanker
+
+settings:
+  developing_keywords:
+    - reportedly
+    - "sources say"
+    - "sources claim"
+    - alleged
+    - allegedly
+    - unconfirmed
+    - "may have"
+    - "is said to"
+    - "report says"
+    - "reports say"
+    - suspected
+    - "believed to"
+    - "according to sources"
+
+  noise_keywords:
+    - nfl
+    - packers
+    - panthers
+    - browns
+    - steelers
+    - quarterback
+    - touchdown
+    - "super bowl"
+    - "serie a"
+    - "inter milan"
+    - "big ten"
+    - "fantasy football"
+    - baseball
+    - mlb
+    - nba
+    - nhl
+    - "box office"
+    - horoscope
+    - astrology
+    - "dating"
+    - "glamorous"
+    - "outfit"
+    - "red carpet"
+    - celebrity
+    - gossip
+    - "trailer launch"
+    - "fashion week"
+
+  high_importance_keywords:
+    - breaking
+    - "prime minister"
+    - "chief minister"
+    - "pm modi"
+    - cabinet
+    - parliament
+    - "lok sabha"
+    - "rajya sabha"
+    - "supreme court"
+    - "high court"
+    - election
+    - bypoll
+    - rbi
+    - "repo rate"
+    - inflation
+    - gdp
+    - budget
+    - isro
+    - satellite
+    - missile
+    - defense
+    - army
+    - navy
+    - "air force"
+    - treaty
+    - summit
+    - bilateral
+    - sanctions
+    - war
+    - ceasefire
+    - blast
+    - explosion
+    - earthquake
+    - cyclone
+    - flood
+    - "death toll"
+    - killed
+    - fatal
+    - crash
+    - derailment
+    - nmmc
+    - cidco
+    - "navi mumbai airport"
+    - nmia
+    - "mumbai metro"
+    - "local train"
+    - "water cut"
+    - "water supply"
+    - "morbe dam"
+    - "atal setu"
+    - "coastal road"
+    - demolition
+    - "monsoon alert"
+
